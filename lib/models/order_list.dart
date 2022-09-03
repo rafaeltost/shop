@@ -1,7 +1,7 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shop/models/cart.dart';
 import 'package:shop/models/order.dart';
+import 'package:shop/repositories/order_repository.dart';
 
 class OrderList with ChangeNotifier {
   final List<Order> _items = [];
@@ -14,16 +14,25 @@ class OrderList with ChangeNotifier {
     return _items.length;
   }
 
-  void addOrder(Cart cart) {
-    _items.insert(
-      0,
-      Order(
-        id: Random().nextDouble().toString(),
-        total: cart.totalAmount,
-        date: DateTime.now(),
-        products: cart.items.values.toList(),
-      ),
+  Future<void> loadProducts() async {
+    _items.clear();
+    List<Order> orders = await OrderRepository().loadProducts();
+    if (orders.isEmpty) return;
+    _items.addAll(orders);
+    notifyListeners();
+  }
+
+  Future<void> addOrder(Cart cart) async {
+    Order order = Order(
+      id: '',
+      total: cart.totalAmount,
+      date: DateTime.now(),
+      products: cart.items.values.toList(),
     );
+
+    order.id = await OrderRepository().addOrder(order);
+
+    _items.insert(0, order);
     notifyListeners();
   }
 }

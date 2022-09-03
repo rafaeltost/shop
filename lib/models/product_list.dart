@@ -1,11 +1,10 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-import 'package:shop/data/dummy_data.dart';
+import 'package:shop/exceptions/http_exception.dart';
 import 'package:shop/models/product.dart';
+import 'package:shop/repositories/product_repository.dart';
 
 class ProductList with ChangeNotifier {
-  final List<Product> _items = dummyProducts;
+  final List<Product> _items = [];
 
   List<Product> get items => [..._items];
   List<Product> get favoriteItems =>
@@ -15,11 +14,30 @@ class ProductList with ChangeNotifier {
     return _items.length;
   }
 
-  void saveProduct(Map<String, Object> data) {
+  Future<void> loadProducts() async {
+    _items.clear();
+    Map<String, dynamic> data = await ProductRepository().loadProducts();
+    if (data.isEmpty) return;
+    data.forEach((productId, productData) {
+      _items.add(
+        Product(
+          id: productId,
+          name: productData['name'],
+          description: productData['description'],
+          price: productData['price'],
+          imageUrl: productData['imageUrl'],
+          isFavorite: productData['isFavorite'],
+        ),
+      );
+    });
+    notifyListeners();
+  }
+
+  Future<void> saveProduct(Map<String, Object> data) {
     bool hasId = data['id'] != null;
 
     final product = Product(
-      id: hasId ? data['id'] as String : Random().nextDouble().toString(),
+      id: hasId ? data['id'] as String : '',
       name: data['name'] as String,
       description: data['description'] as String,
       price: data['price'] as double,
@@ -27,32 +45,56 @@ class ProductList with ChangeNotifier {
     );
 
     if (hasId) {
-      updateProduct(product);
+      return updateProduct(product);
     } else {
-      addProduct(product);
+      return addProduct(product);
     }
   }
 
-  void addProduct(Product product) {
-    _items.add(product);
+  Future<void> addProduct(Product product) async {
+    final id = await ProductRepository().addProduct(product);
+    _items.add(Product(
+      id: id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      imageUrl: product.imageUrl,
+      isFavorite: product.isFavorite,
+    ));
     notifyListeners();
   }
 
-  void updateProduct(Product product) {
+  Future<void> updateProduct(Product product) async {
     int index = _items.indexWhere((p) => p.id == product.id);
 
     if (index >= 0) {
-      _items[index] = product;
-      notifyListeners();
+      final responseStatusCode = await ProductRepository().updateProduct(product);
+
+      if (responseStatusCode >= 400) {
+        _items[index] = product;
+        notifyListeners();
+      }
     }
   }
 
-  void removeProduct(Product product) {
+  Future<void> removeProduct(Product product) async {
     int index = _items.indexWhere((p) => p.id == product.id);
 
     if (index >= 0) {
-      _items.removeWhere((p) => p.id == product.id);
+      final product = _items[index];
+      _items.remove(product);
       notifyListeners();
+
+      final responseStatusCode = await ProductRepository().removeProduct(product);
+
+      if (responseStatusCode >= 400) {
+        _items.insert(index, product);
+        notifyListeners();
+        throw HttpException(
+          msg: 'Não foi possível excluir o produto.',
+          statusCode: responseStatusCode,
+        );
+      }
     }
   }
 }

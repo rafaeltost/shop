@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shop/repositories/product_repository.dart';
 
 class Product with ChangeNotifier {
   final String id;
@@ -17,8 +18,17 @@ class Product with ChangeNotifier {
     this.isFavorite = false,
   });
 
-  void toggleFavorite() {
+  void _toggleFavorite() {
     isFavorite = !isFavorite;
     notifyListeners();
+  }
+
+  Future<void> toggleFavorite() async {
+    _toggleFavorite();
+    final responseStatusCode = await ProductRepository().updateProduct(this);
+
+    if (responseStatusCode >= 400) {
+      _toggleFavorite();
+    }
   }
 }

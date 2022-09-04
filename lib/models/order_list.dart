@@ -4,7 +4,8 @@ import 'package:shop/models/order.dart';
 import 'package:shop/repositories/order_repository.dart';
 
 class OrderList with ChangeNotifier {
-  final List<Order> _items = [];
+  List<Order> _items = [];
+  OrderRepository ? orderRepository;
 
   List<Order> get items {
     return [..._items];
@@ -14,11 +15,17 @@ class OrderList with ChangeNotifier {
     return _items.length;
   }
 
+  OrderList([String token = '', String userId = '',List<Order> items = const []]){
+    _items = items;
+    orderRepository = OrderRepository(token, userId);
+  }
+
   Future<void> loadProducts() async {
-    _items.clear();
-    List<Order> orders = await OrderRepository().loadProducts();
+    List<Order> items = [];
+    List<Order> orders = await orderRepository!.loadProducts();
     if (orders.isEmpty) return;
-    _items.addAll(orders);
+    items.addAll(orders);
+    _items = items.reversed.toList();
     notifyListeners();
   }
 
@@ -30,7 +37,7 @@ class OrderList with ChangeNotifier {
       products: cart.items.values.toList(),
     );
 
-    order.id = await OrderRepository().addOrder(order);
+    order.id = await orderRepository!.addOrder(order);
 
     _items.insert(0, order);
     notifyListeners();

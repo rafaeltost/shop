@@ -5,11 +5,16 @@ import 'package:shop/models/cart_item.dart';
 import 'package:shop/models/order.dart';
 
 class OrderRepository {
+  final String _token; 
+  final String _userId;
+
+  OrderRepository(this._token, this._userId);
+
   final _baseUrl = 'https://shop-3677d-default-rtdb.firebaseio.com/orders';
 
   Future<String> addOrder(Order order) async {
     final response = await http.post(
-      Uri.parse('$_baseUrl.json'),
+      Uri.parse('$_baseUrl/$_userId.json?auth=$_token'),
       body: jsonEncode(
         {
           "total": order.total,
@@ -35,7 +40,7 @@ class OrderRepository {
   Future<List<Order>> loadProducts() async {
     List<Order> orders = [];
 
-    final response = await http.get(Uri.parse('$_baseUrl.json'));
+    final response = await http.get(Uri.parse('$_baseUrl/$_userId.json?auth=$_token'));
     if (response.body != 'null') {
       Map<String, dynamic> data = jsonDecode(response.body);
       

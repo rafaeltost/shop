@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:shop/exceptions/http_exception.dart';
 import 'package:shop/models/product.dart';
 import 'package:shop/repositories/product_repository.dart';
+import 'package:shop/services/favorite_product_service.dart';
 
 class ProductList with ChangeNotifier {
-  final List<Product> _items = [];
+  List<Product> _items = [];
+  ProductRepository? repository;
+  String? _token;
+  String? _userId;
 
   List<Product> get items => [..._items];
   List<Product> get favoriteItems =>
@@ -14,11 +18,24 @@ class ProductList with ChangeNotifier {
     return _items.length;
   }
 
+  ProductList([String token = '', String userId = '', List<Product> items = const []]) {
+    _items = items;
+    _userId = userId;
+    _token = token;
+    repository = ProductRepository(token);
+  }
+
   Future<void> loadProducts() async {
     _items.clear();
-    Map<String, dynamic> data = await ProductRepository().loadProducts();
+
+    Map<String, dynamic> data = await repository!.loadProducts();
     if (data.isEmpty) return;
+
+    Map<String, dynamic> favoritesData =
+        await FavoriteProductService().loadFavorites(_token!, _userId!);
+
     data.forEach((productId, productData) {
+      final isFavorite = favoritesData[productId] ?? false;
       _items.add(
         Product(
           id: productId,
@@ -26,7 +43,7 @@ class ProductList with ChangeNotifier {
           description: productData['description'],
           price: productData['price'],
           imageUrl: productData['imageUrl'],
-          isFavorite: productData['isFavorite'],
+          isFavorite: isFavorite,
         ),
       );
     });
@@ -52,14 +69,13 @@ class ProductList with ChangeNotifier {
   }
 
   Future<void> addProduct(Product product) async {
-    final id = await ProductRepository().addProduct(product);
+    final id = await repository!.addProduct(product);
     _items.add(Product(
       id: id,
       name: product.name,
       description: product.description,
       price: product.price,
       imageUrl: product.imageUrl,
-      isFavorite: product.isFavorite,
     ));
     notifyListeners();
   }
@@ -68,7 +84,7 @@ class ProductList with ChangeNotifier {
     int index = _items.indexWhere((p) => p.id == product.id);
 
     if (index >= 0) {
-      final responseStatusCode = await ProductRepository().updateProduct(product);
+      final responseStatusCode = await repository!.updateProduct(product);
 
       if (responseStatusCode >= 400) {
         _items[index] = product;
@@ -85,7 +101,7 @@ class ProductList with ChangeNotifier {
       _items.remove(product);
       notifyListeners();
 
-      final responseStatusCode = await ProductRepository().removeProduct(product);
+      final responseStatusCode = await repository!.removeProduct(product);
 
       if (responseStatusCode >= 400) {
         _items.insert(index, product);

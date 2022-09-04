@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shop/repositories/product_repository.dart';
+import 'package:shop/services/favorite_product_service.dart';
 
 class Product with ChangeNotifier {
   final String id;
@@ -23,9 +23,11 @@ class Product with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> toggleFavorite() async {
+  Future<void> toggleFavorite(
+      String token, String userId, String productId) async {
     _toggleFavorite();
-    final responseStatusCode = await ProductRepository().updateProduct(this);
+
+    final responseStatusCode = await FavoriteProductService().toggleFavorite(token, userId, productId, isFavorite);
 
     if (responseStatusCode >= 400) {
       _toggleFavorite();
